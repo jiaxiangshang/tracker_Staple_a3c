@@ -1,6 +1,6 @@
 import os
 
-proPath = "D:\\Program\\Tracking\\Project\\"
+proPath = "D:\\JiaXiang\\1-trackingRL\\Project\\"
 cwdPath = proPath + "tracking_Staple_cvpr16\\"
 otbPath = proPath + "tracker_benchmark_OTB_Python\\"
 libPath = proPath + "tracking_Lib\\"

@@ -23,8 +23,9 @@ for idx in range(len(videoName_list)):
     video = loadVideo_byName(videoName_list[idx])
     video_gt = loadVideoGt(videoName_list[idx])
 
+    stapleMatlab = staple_MatlabEngine();
     tic = time.clock()
-    res,heatmap = tracker_cf_Staple_RL(subS, RESULTPATH, SAVE_IMAGE)
+    res,heatmap = staple_MatlabEngine.run_Staple_MatlabFull(subS, RESULTPATH, SAVE_IMAGE)
     duration = time.clock() - tic
     print(videoName_list[idx], duration)
 

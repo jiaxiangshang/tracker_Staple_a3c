@@ -23,7 +23,7 @@ function [params, bg_area, fg_area, area_resize_factor] = initializeAllAreas(im,
 	% given the norm BG area, which is the corresponding target w and h?
  	norm_target_sz_w = 0.75*params.norm_bg_area(2) - 0.25*params.norm_bg_area(1);
  	norm_target_sz_h = 0.75*params.norm_bg_area(1) - 0.25*params.norm_bg_area(2);
-%    norm_target_sz_w = params.target_sz(2) * params.norm_bg_area(2) / bg_area(2);
+%   norm_target_sz_w = params.target_sz(2) * params.norm_bg_area(2) / bg_area(2);
 %	norm_target_sz_h = params.target_sz(1) * params.norm_bg_area(1) / bg_area(1);
     params.norm_target_sz = round([norm_target_sz_h norm_target_sz_w]);
 	% distance (on one side) between target and bg area

@@ -1,9 +1,14 @@
-function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
+function [results,heatmap] = ExpRL_trackerMain(p, im, bg_area, fg_area, area_resize_factor)
 %TRACKERMAIN contains the main loop of the tracker, P contains all the parameters set in runTracker
     %% INITIALIZATION
     num_frames = numel(p.img_files);
     % used for OTB-13 benchmark
     OTB_rect_positions = zeros(num_frames, 4);
+    response_List = cell(1,num_frames);
+    
+    hf_den_List = {};
+    hf_num_List = {};
+    
 	pos = p.init_pos;
     target_sz = p.target_sz;
 	num_frames = numel(p.img_files);
@@ -76,20 +81,38 @@ function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
             xtf = fft2(xt_windowed);
             % Correlation between filter and test patch gives the response
             % Solve diagonal system per pixel.
-            if p.den_per_channel
-                hf = hf_num ./ (hf_den + p.lambda);
-            else
-                hf = bsxfun(@rdivide, hf_num, sum(hf_den, 3)+p.lambda);
-            end
-            response_cf = ensure_real(ifft2(sum(conj(hf) .* xtf, 3)));
-            max_response_cf = max(max(response_cf));
             
-            % Crop square search region (in feature pixels).
-            response_cf = cropFilterResponse(response_cf, ...
-                floor_odd(p.norm_delta_area / p.hog_cell_size));
-            if p.hog_cell_size > 1
-                % Scale up to match center likelihood resolution.
-                response_cf = mexResize(response_cf, p.norm_delta_area,'auto');
+            response_cf_List = {};
+            response_cf_max_List = [];
+            for i = 1 : length(hf_den_List)
+                if p.den_per_channel
+                    hf =  hf_num_List{i} ./ (hf_den_List{i} + p.lambda);
+                else
+                    hf = bsxfun(@rdivide, hf_num_List{i}, sum(hf_den_List{i}, 3)+p.lambda);
+                end
+                response_cf = ensure_real(ifft2(sum(conj(hf) .* xtf, 3)));
+
+                % Crop square search region (in feature pixels).
+                response_cf = cropFilterResponse(response_cf, ...
+                    floor_odd(p.norm_delta_area / p.hog_cell_size));
+                if p.hog_cell_size > 1
+                    % Scale up to match center likelihood resolution.
+                    response_cf = mexResize(response_cf, p.norm_delta_area,'auto');
+                end
+                
+                response_cf_List = {response_cf_List{:} response_cf};
+                response_cf_max_List = [response_cf_max_List max(max(response_cf))];
+            end
+            
+            [value_max,index_max] = max(response_cf_max_List);
+            
+            response_cf = response_cf_List{index_max};
+            
+            [frame,index_max,response_cf_max_List]
+            
+            for i = 1 : length(hf_den_List)
+                figure(i + 1000)
+                imagesc(response_cf_List{i})
             end
 
             [likelihood_map] = getColourMap(im_patch_pwp, bg_hist, fg_hist, p.n_bins, p.grayscale_sequence);
@@ -161,20 +184,28 @@ function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
 		new_hf_num = bsxfun(@times, conj(yf), xtf) / prod(p.cf_response_size);
 		new_hf_den = (conj(xtf) .* xtf) / prod(p.cf_response_size);
 
-        if frame == 1
-            % first frame, train with a single image
-		    hf_den = new_hf_den;
-		    hf_num = new_hf_num;
-		else
-		    % subsequent frames, update the model by linear interpolation
-        	hf_den = (1 - p.learning_rate_cf) * hf_den + p.learning_rate_cf * new_hf_den;
-	   	 	hf_num = (1 - p.learning_rate_cf) * hf_num + p.learning_rate_cf * new_hf_num;
 
+		if frame == 1
+            hf_den_List = {hf_den_List{:} new_hf_den};
+            hf_num_List = {hf_num_List{:} new_hf_num};
+        else
+		    % subsequent frames, update the model by linear interpolation
+            for i = 1 : length(hf_den_List)
+                hf_den_List{i} = (1 - p.learning_rate_cf) * hf_den_List{i} + p.learning_rate_cf * new_hf_den;
+                hf_num_List{i} = (1 - p.learning_rate_cf) * hf_num_List{i} + p.learning_rate_cf * new_hf_num;
+            end
             %% BG/FG MODEL UPDATE
             % patch of the target + padding
             [bg_hist, fg_hist] = updateHistModel(new_pwp_model, im_patch_bg, bg_area, fg_area, target_sz, p.norm_bg_area, p.n_bins, p.grayscale_sequence, bg_hist, fg_hist, p.learning_rate_pwp);
+            
+            if mod(frame,50) == 1
+                hf_den_List = {hf_den_List{:} new_hf_den};
+                hf_num_List = {hf_num_List{:} new_hf_num};
+            end
+            
         end
 
+        
         %% SCALE UPDATE
         if p.scale_adaptation
             im_patch_scale = getScaleSubwindow(im, pos, base_target_sz, scale_factor*scale_factors, scale_window, scale_model_sz, p.hog_scale_cell_size);
@@ -196,7 +227,14 @@ function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
         rect_position_padded = [pos([2,1]) - bg_area([2,1])/2, bg_area([2,1])];
 
         OTB_rect_positions(frame,:) = rect_position;
-
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get heatmap
+        if frame == 1
+            response_List{frame} = ones(75,75);
+        else
+            response_List{frame} = response_cf_List;
+        end
+        
         if p.fout > 0,  fprintf(p.fout,'%.2f,%.2f,%.2f,%.2f\n', rect_position(1),rect_position(2),rect_position(3),rect_position(4));   end
 
         %% VISUALIZATION
@@ -205,7 +243,7 @@ function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
                 im = insertShape(im, 'Rectangle', rect_position, 'LineWidth', 4, 'Color', 'black');
                 im = insertShape(im, 'Rectangle', rect_position_padded, 'LineWidth', 4, 'Color', 'yellow');
                 % Display the annotated video frame using the video player object.
-                step(p.videoPlayer, im);
+                %step(p.videoPlayer, im);
             else
                 figure(1)
                 imshow(im)
@@ -215,11 +253,13 @@ function [results] = trackerMain(p, im, bg_area, fg_area, area_resize_factor)
             end
         end
     end
+    
     elapsed_time = toc;
     % save data for OTB-13 benchmark
     results.type = 'rect';
     results.res = OTB_rect_positions;
     results.fps = num_frames/(elapsed_time - t_imread);
+    heatmap = response_List;
 end
 
 % Reimplementation of Hann window (in case signal processing toolbox is missing)

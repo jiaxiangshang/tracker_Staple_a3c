@@ -108,8 +108,8 @@ function [results,heatmap] = ExpRL_trackerMain(p, im, bg_area, fg_area, area_res
             
             response_cf = response_cf_List{index_max};
             
-            frame
-            index_max
+            [frame,index_max,response_cf_max_List]
+            
             for i = 1 : length(hf_den_List)
                 figure(i + 1000)
                 imagesc(response_cf_List{i})
