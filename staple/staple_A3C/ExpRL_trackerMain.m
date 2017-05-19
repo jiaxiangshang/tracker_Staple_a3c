@@ -29,6 +29,7 @@ function [results,heatmap] = ExpRL_trackerMain(p, im, bg_area, fg_area, area_res
     output_sigma = sqrt(prod(p.norm_target_sz)) * p.output_sigma_factor / p.hog_cell_size;
     y = gaussianResponse(p.cf_response_size, output_sigma);
     yf = fft2(y);
+    
     %% SCALE ADAPTATION INITIALIZATION
     if p.scale_adaptation
         % Code from DSST
@@ -174,7 +175,8 @@ function [results,heatmap] = ExpRL_trackerMain(p, im, bg_area, fg_area, area_res
         im_patch_bg = getSubwindow(im, pos, p.norm_bg_area, bg_area);
         % compute feature map, of cf_response_size
         xt = getFeatureMap(im_patch_bg, p.feature_type, p.cf_response_size, p.hog_cell_size);
-        % apply Hann window
+        % apply Hann windowcl
+
         xt = bsxfun(@times, hann_window, xt);
         % compute FFT
         xtf = fft2(xt);
@@ -253,7 +255,6 @@ function [results,heatmap] = ExpRL_trackerMain(p, im, bg_area, fg_area, area_res
             end
         end
     end
-    
     elapsed_time = toc;
     % save data for OTB-13 benchmark
     results.type = 'rect';
@@ -267,12 +268,4 @@ function H = myHann(X)
     H = .5*(1 - cos(2*pi*(0:X-1)'/(X-1)));
 end
 
-% We want odd regions so that the central pixel can be exact
-function y = floor_odd(x)
-    y = 2*floor((x-1) / 2) + 1;
-end
 
-function y = ensure_real(x)
-    assert(norm(imag(x(:))) <= 1e-5 * norm(real(x(:))));
-    y = real(x);
-end

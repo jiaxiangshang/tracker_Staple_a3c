@@ -3,7 +3,6 @@ function im_patch = getSubwindow(im, pos, model_sz, scaled_sz)
 %   Returns sub-window of image IM centered at POS ([y, x] coordinates),
 %   with size MODEL_SZ ([height, width]). If any pixels are outside of the image,
 %   they will replicate the values at the borders
-
 % with 3 input, no scale. With 4 params, scale adaptation
 if nargin < 4, sz = model_sz;   
 else, sz = scaled_sz;    

@@ -1,8 +1,8 @@
-function [params_, im_, bg_area_, fg_area_, area_resize_factor_] = get_stapleParam(seq, res_path, bSaveImage)
+function [ params_, im_, bg_area_, fg_area_, area_resize_factor_ ] = read_OTBParam( seq, res_path, bSaveImage )
 % Entry point for the Wu - CVPR2013 benchmark
 
     %% Read params.txt
-    params = readParams('../params.txt');
+    params = readParams('params.txt');
     params.img_files = seq.s_frames;
     params.img_path = '';
 
@@ -34,11 +34,12 @@ function [params_, im_, bg_area_, fg_area_, area_resize_factor_] = get_staplePar
 
 	% in runTracker we do not output anything because it is just for debug
 	params.fout = -1;
-
-	% start the actual tracking
-	params_ = params;
-    im_ = im;
+    
+    params_ = params;
+    im_  = im;
     bg_area_ = bg_area;
     fg_area_ = fg_area;
     area_resize_factor_ = area_resize_factor;
+    
 end
+
